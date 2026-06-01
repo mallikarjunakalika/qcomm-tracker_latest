@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ECAL Qcom Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3349;
+    --accent: #4f8ef7;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --gray: #4b5563;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --premium: #fbbf24;
+    --uppermid: #60a5fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px; min-height: 100vh;
+  }
+
+  /* ── Header ──────────────────────────────── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
+  .title { font-size: 16px; font-weight: 700; color: var(--accent); }
+  .subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .run-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .run-btn:disabled { opacity: 0.5; }
+
+  /* ── Summary cards ───────────────────────── */
+  .summary-row {
+    display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .summary-row::-webkit-scrollbar { display: none; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; min-width: 120px; flex-shrink: 0;
+  }
+  .card-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .card-value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .card-sub { font-size: 10px; color: var(--muted); }
+  .green { color: var(--green); }
+  .red   { color: var(--red); }
+  .amber { color: var(--amber); }
+  .blue  { color: var(--accent); }
+
+  /* ── Tabs ────────────────────────────────── */
+  .tabs {
+    display: flex; gap: 4px; padding: 0 16px 10px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 6px 14px; border-radius: 20px; cursor: pointer;
+    font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); white-space: nowrap;
+  }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ── Filters ─────────────────────────────── */
+  .filters {
+    display: flex; gap: 8px; padding: 0 16px 10px;
+    overflow-x: auto; scrollbar-width: none;
+    align-items: center;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  select {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-size: 12px; min-width: 120px;
+  }
+
+  /* ── Matrix table ────────────────────────── */
+  .table-wrap {
+    padding: 0 16px 80px;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse; width: 100%; min-width: 600px;
+  }
+  thead th {
+    background: var(--surface2); color: var(--muted);
+    font-size: 10px; font-weight: 600; text-align: left;
+    padding: 8px 6px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    white-space: nowrap;
+  }
+  .th-pin { min-width: 130px; position: sticky; left: 0; z-index: 10;
+             background: var(--surface2); }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:hover { background: var(--surface); }
+  td { padding: 6px 6px; vertical-align: middle; }
+  .td-pin {
+    position: sticky; left: 0; background: var(--bg); z-index: 5;
+    min-width: 130px;
+  }
+  tbody tr:hover .td-pin { background: var(--surface); }
+  .pin-code { font-weight: 600; font-size: 12px; }
+  .pin-area { font-size: 10px; color: var(--muted); }
+  .tier-badge {
+    display: inline-block; font-size: 9px; padding: 1px 5px;
+    border-radius: 4px; font-weight: 700; margin-top: 2px;
+  }
+  .tier-Premium  { background: rgba(251,191,36,0.15); color: var(--premium); }
+  .tier-Upper-Mid{ background: rgba(96,165,250,0.15); color: var(--uppermid); }
+
+  .dot {
+    display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+    text-align: center; line-height: 18px; font-size: 10px; font-weight: 700;
+    cursor: default;
+  }
+  .dot-avail   { background: rgba(34,197,94,0.2); color: var(--green); }
+  .dot-unavail { background: rgba(239,68,68,0.15); color: var(--red); }
+  .dot-error   { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .dot-null    { background: var(--surface2); color: var(--gray); }
+
+  /* ── SKU legend ──────────────────────────── */
+  .legend-wrap {
+    padding: 10px 16px; background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  .legend-title { font-size: 11px; font-weight: 700; color: var(--muted);
+                  margin-bottom: 6px; }
+  .legend-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 3px;
+  }
+  .legend-item { font-size: 10px; color: var(--muted); }
+  .legend-num { font-weight: 700; color: var(--text); margin-right: 4px; }
+
+  /* ── Empty / loading ─────────────────────── */
+  .center-msg {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 300px; gap: 10px;
+    color: var(--muted); font-size: 14px;
+  }
+  .spinner {
+    width: 30px; height: 30px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ───────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; display: none; z-index: 200;
+  }
+  .toast.show { display: block; }
+
+  .avail-pct {
+    font-size: 10px; color: var(--muted);
+    display: block; margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="title">ECAL Qcom Tracker</div>
+      <div class="subtitle" id="last-run">Loading…</div>
+    </div>
+    <button class="run-btn" id="run-btn" onclick="triggerRun()">▶ Run Now</button>
+  </div>
+</div>
+
+<div class="summary-row" id="summary-row"></div>
+
+<div class="tabs" id="platform-tabs">
+  <div class="tab active" onclick="selectPlatform('all', this)">All</div>
+  <div class="tab" onclick="selectPlatform('blinkit', this)">Blinkit</div>
+  <div class="tab" onclick="selectPlatform('swiggy', this)">Swiggy</div>
+  <div class="tab" onclick="selectPlatform('zepto', this)">Zepto</div>
+</div>
+
+<div class="filters">
+  <select id="filter-tier" onchange="renderTable()">
+    <option value="all">All Tiers</option>
+    <option value="Premium">Premium</option>
+    <option value="Upper Mid">Upper Mid</option>
+  </select>
+  <select id="filter-brand" onchange="renderTable()">
+    <option value="all">All Brands</option>
+  </select>
+  <select id="filter-avail" onchange="renderTable()">
+    <option value="all">All Status</option>
+    <option value="gap">Has Gap</option>
+    <option value="full">Fully Available</option>
+  </select>
+</div>
+
+<div id="table-container">
+  <div class="center-msg"><div class="spinner"></div><span>Loading data…</span></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RUN_TOKEN = "ecal2026"; // matches server default
+
+let allData = null;
+let currentPlatform = "all";
+
+const PLATFORM_LABELS = { blinkit: "Blinkit", swiggy: "Swiggy", zepto: "Zepto" };
+
+// ── Fetch data ──────────────────────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const r = await fetch("/api/results");
+    if (!r.ok) {
+      showMsg("No data yet. Click ▶ Run Now to start.");
+      return;
+    }
+    allData = await r.json();
+    processData();
+  } catch(e) {
+    showMsg("Could not connect to server.");
+  }
+}
+
+function showMsg(msg) {
+  document.getElementById("table-container").innerHTML =
+    `<div class="center-msg"><span>${msg}</span></div>`;
+}
+
+// ── Process & render ─────────────────────────────────────────────────────────
+function getActivePlatforms() {
+  if (currentPlatform === "all") return ["blinkit", "swiggy", "zepto"];
+  return [currentPlatform];
+}
+
+function processData() {
+  if (!allData) return;
+
+  // Update header
+  const meta = allData.meta || {};
+  document.getElementById("last-run").textContent =
+    meta.last_run ? `Last run: ${meta.last_run}  (${meta.run_duration_s}s)` : "No run yet";
+
+  // Populate brand filter
+  const brands = [...new Set(Object.values(allData._skus || {}).map(s => s.brand))];
+  // We'll derive brands from a static list
+  const staticBrands = ["American Club","Benson & Hedges","Classic","Flake",
+                         "Gold Flake","India Kings","Navy Cut","SilkCut"];
+  const sel = document.getElementById("filter-brand");
+  sel.innerHTML = '<option value="all">All Brands</option>';
+  staticBrands.forEach(b => {
+    const o = document.createElement("option");
+    o.value = b; o.textContent = b;
+    sel.appendChild(o);
+  });
+
+  renderSummary();
+  renderTable();
+}
+
+function renderSummary() {
+  if (!allData) return;
+  const platforms = getActivePlatforms();
+  const pinCodes = Object.keys(allData.data[platforms[0]] || {});
+  const skuIds   = Object.keys(Object.values(allData.data[platforms[0]] || {})[0] || {});
+
+  let totalChecks = 0, available = 0;
+  let fullPins = 0;
+
+  for (const pin of pinCodes) {
+    let pinAvail = 0, pinTotal = 0;
+    for (const plt of platforms) {
+      for (const sku of skuIds) {
+        const d = allData.data[plt]?.[pin]?.[sku];
+        if (d !== undefined && d !== null) {
+          totalChecks++;
+          pinTotal++;
+          if (d.available) { available++; pinAvail++; }
+        }
+      }
+    }
+    if (pinAvail === pinTotal && pinTotal > 0) fullPins++;
+  }
+
+  const pct = totalChecks > 0 ? Math.round(available / totalChecks * 100) : 0;
+  const gaps = pinCodes.length - fullPins;
+
+  document.getElementById("summary-row").innerHTML = `
+    <div class="card">
+      <div class="card-label">Availability</div>
+      <div class="card-value ${pct >= 90 ? 'green' : pct >= 70 ? 'amber' : 'red'}">${pct}%</div>
+      <div class="card-sub">${available}/${totalChecks} checks</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Pin Codes</div>
+      <div class="card-value blue">${pinCodes.length}</div>
+      <div class="card-sub">tracked</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Gaps Found</div>
+      <div class="card-value ${gaps > 0 ? 'red' : 'green'}">${gaps}</div>
+      <div class="card-sub">pin codes w/ miss</div>
+    </div>
+    <div class="card">
+      <div class="card-label">SKUs</div>
+      <div class="card-value blue">${skuIds.length}</div>
+      <div class="card-sub">per platform</div>
+    </div>
+  `;
+}
+
+function renderTable() {
+  if (!allData) return;
+
+  const platforms   = getActivePlatforms();
+  const tierFilter  = document.getElementById("filter-tier").value;
+  const brandFilter = document.getElementById("filter-brand").value;
+  const availFilter = document.getElementById("filter-avail").value;
+
+  // Build pin → tier map from data (we embed this via server-side template)
+  // We pull pin meta from the window constant set below
+  const pinMeta = window.PIN_META || {};
+  const skuMeta = window.SKU_META || {};
+
+  // Filter skus by brand
+  let skuList = Object.values(skuMeta);
+  if (brandFilter !== "all") skuList = skuList.filter(s => s.brand === brandFilter);
+
+  // Filter pins by tier
+  let pinList = Object.keys(pinMeta);
+  if (tierFilter !== "all") pinList = pinList.filter(p => pinMeta[p]?.tier === tierFilter);
+
+  // Filter by availability gap
+  if (availFilter !== "all") {
+    pinList = pinList.filter(pin => {
+      let avail = 0, total = 0;
+      for (const plt of platforms) {
+        for (const sku of skuList) {
+          const d = allData.data[plt]?.[pin]?.[sku.sku];
+          if (d) { total++; if (d.available) avail++; }
+        }
+      }
+      if (availFilter === "gap")  return avail < total;
+      if (availFilter === "full") return avail === total;
+      return true;
+    });
+  }
+
+  if (skuList.length === 0 || pinList.length === 0) {
+    document.getElementById("table-container").innerHTML =
+      '<div class="center-msg"><span>No data matches filters.</span></div>';
+    return;
+  }
+
+  // Build column headers: platform × sku  (or just sku if single platform)
+  let cols = [];
+  for (const plt of platforms) {
+    for (const sku of skuList) {
+      cols.push({ platform: plt, sku });
+    }
+  }
+
+  // Build header row
+  let headerHtml = `<tr>
+    <th class="th-pin">Pin Code</th>`;
+
+  // Group headers
+  if (platforms.length > 1) {
+    // First row: platform spans
+    let platformHeaders = '';
+    for (const plt of platforms) {
+      platformHeaders += `<th colspan="${skuList.length}" style="text-align:center;border-left:2px solid var(--border)">
+        ${PLATFORM_LABELS[plt]}</th>`;
+    }
+    // Second row: sku numbers
+    let skuHeaders = '';
+    for (const plt of platforms) {
+      skuList.forEach((sku, i) => {
+        const border = i === 0 ? 'border-left:2px solid var(--border)' : '';
+        skuHeaders += `<th title="${sku.name}" style="${border}">${sku._idx ?? '#'}</th>`;
+      });
+    }
+    headerHtml = `<tr><th class="th-pin" rowspan="2">Pin Code</th>${platformHeaders}</tr>
+                  <tr>${skuHeaders}</tr>`;
+  } else {
+    skuList.forEach(sku => {
+      headerHtml += `<th title="${sku.name}">${sku._idx ?? '#'}</th>`;
+    });
+    headerHtml += '</tr>';
+  }
+
+  // Build data rows
+  let rowsHtml = '';
+  for (const pin of pinList) {
+    const meta = pinMeta[pin] || {};
+    const tier = (meta.tier || '').replace(' ', '-');
+
+    // per-pin availability %
+    let pinAvail = 0, pinTotal = 0;
+    for (const col of cols) {
+      const d = allData.data[col.platform]?.[pin]?.[col.sku.sku];
+      if (d) { pinTotal++; if (d.available) pinAvail++; }
+    }
+    const pinPct = pinTotal > 0 ? Math.round(pinAvail / pinTotal * 100) : 0;
+
+    let cells = '';
+    let prevPlt = null;
+    for (const col of cols) {
+      const d = allData.data[col.platform]?.[pin]?.[col.sku.sku];
+      const border = (platforms.length > 1 && col.platform !== prevPlt)
+        ? 'border-left:2px solid var(--border)' : '';
+      prevPlt = col.platform;
+
+      let dot;
+      if (!d || d.available === null) {
+        dot = `<span class="dot dot-null" title="Not checked">·</span>`;
+      } else if (d.error) {
+        dot = `<span class="dot dot-error" title="Error: ${d.error}">!</span>`;
+      } else if (d.available) {
+        dot = `<span class="dot dot-avail" title="${d.product_name_found || 'Available'}">✓</span>`;
+      } else {
+        dot = `<span class="dot dot-unavail" title="${col.sku.name} — Not found">✗</span>`;
+      }
+      cells += `<td style="${border}">${dot}</td>`;
+    }
+
+    rowsHtml += `
+      <tr>
+        <td class="td-pin">
+          <div class="pin-code">${pin}</div>
+          <div class="pin-area">${meta.area || ''}</div>
+          <span class="tier-badge tier-${tier}">${meta.tier || ''}</span>
+          <span class="avail-pct">${pinPct}%</span>
+        </td>
+        ${cells}
+      </tr>`;
+  }
+
+  document.getElementById("table-container").innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>${headerHtml}</thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    ${buildLegend(skuList)}
+  `;
+}
+
+function buildLegend(skuList) {
+  const items = skuList.map(s =>
+    `<div class="legend-item"><span class="legend-num">${s._idx}</span>${s.name}</div>`
+  ).join('');
+  return `
+    <div class="legend-wrap">
+      <div class="legend-title">SKU Index</div>
+      <div class="legend-grid">${items}</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--muted)">
+        ✓ Available &nbsp; ✗ Not found &nbsp; ! Error &nbsp; · Not checked
+      </div>
+    </div>`;
+}
+
+function selectPlatform(p, el) {
+  currentPlatform = p;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  if (allData) { renderSummary(); renderTable(); }
+}
+
+// ── Run trigger ──────────────────────────────────────────────────────────────
+async function triggerRun() {
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true;
+  btn.textContent = "Running…";
+  showToast("Scraper started — check back in ~10 min");
+  try {
+    await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Run-Token": RUN_TOKEN },
+      body: JSON.stringify({})
+    });
+  } catch(e) {}
+  setTimeout(() => { btn.disabled = false; btn.textContent = "▶ Run Now"; }, 5000);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+// ── Auto-refresh every 5 min ─────────────────────────────────────────────────
+setInterval(fetchData, 5 * 60 * 1000);
+</script>
+
+<!-- Embed static config so dashboard works without extra API call -->
+<script>
+// These are populated by fetched data — kept as fallback
+window.PIN_META = {
+  "700156":{"area":"New Town AA II-III","tier":"Premium"},
+  "700016":{"area":"Park Street / Camac Street","tier":"Premium"},
+  "700106":{"area":"New Town Action Area I","tier":"Premium"},
+  "700019":{"area":"Ballygunge","tier":"Premium"},
+  "700020":{"area":"Gariahat / Ballygunge Phari","tier":"Premium"},
+  "700027":{"area":"Alipore","tier":"Premium"},
+  "700107":{"area":"Chinar Park / Rajarhat","tier":"Upper Mid"},
+  "700097":{"area":"Salt Lake Sec V / Karunamoyee","tier":"Upper Mid"},
+  "700064":{"area":"Salt Lake Sec I-III","tier":"Upper Mid"},
+  "700150":{"area":"Rajarhat E","tier":"Upper Mid"},
+  "700053":{"area":"New Alipore","tier":"Upper Mid"},
+  "700033":{"area":"Tollygunge","tier":"Upper Mid"},
+  "700075":{"area":"Kasba","tier":"Upper Mid"},
+  "700072":{"area":"Jodhpur Park","tier":"Upper Mid"},
+  "700098":{"area":"Krishnapur / NT fringe","tier":"Upper Mid"},
+  "700091":{"area":"Salt Lake Sec IV-V","tier":"Upper Mid"},
+  "700073":{"area":"Anandapur / EM Bypass","tier":"Upper Mid"},
+  "700015":{"area":"Elgin Road / Bhowanipore N","tier":"Upper Mid"},
+  "700022":{"area":"Dhakuria / Golpark","tier":"Upper Mid"},
+  "700021":{"area":"Lansdowne / Beck Bagan","tier":"Upper Mid"},
+  "700032":{"area":"Jadavpur","tier":"Upper Mid"},
+  "700077":{"area":"Dhakuria W","tier":"Upper Mid"},
+  "700084":{"area":"Garia / Narendrapur fringe","tier":"Upper Mid"},
+  "700086":{"area":"Deshapriya Park","tier":"Upper Mid"},
+  "700026":{"area":"Southern Avenue / Lake E","tier":"Upper Mid"},
+  "700155":{"area":"New Town Adj","tier":"Upper Mid"},
+  "700028":{"area":"Bhabanipur / Paddapukur","tier":"Upper Mid"},
+  "700025":{"area":"Bhowanipore","tier":"Upper Mid"},
+  "700029":{"area":"Lake Gardens","tier":"Upper Mid"},
+  "700135":{"area":"Rajarhat Main","tier":"Upper Mid"}
+};
+
+window.SKU_META = {
+  "AMCLUBCLOVEMINT10":{"sku":"AMCLUBCLOVEMINT10","name":"American Club Clove Mint 10","brand":"American Club","segment":"KSFT","_idx":1},
+  "AMCNYCOOLSLKFTK20":{"sku":"AMCNYCOOLSLKFTK20","name":"American Club NY Cool 20","brand":"American Club","segment":"Super KSFT","_idx":2},
+  "B&HFTKGB20":{"sku":"B&HFTKGB20","name":"Benson & Hedges Blue Gold 20","brand":"Benson & Hedges","segment":"KSFT","_idx":3},
+  "B&HFTKSPL20":{"sku":"B&HFTKSPL20","name":"Benson & Hedges Special 20","brand":"Benson & Hedges","segment":"KSFT","_idx":4},
+  "CLALPHATECFK20":{"sku":"CLALPHATECFK20","name":"Classic Alphatec 20","brand":"Classic","segment":"KSFT","_idx":5},
+  "CLFLKBT10":{"sku":"CLFLKBT10","name":"Classic Balanced Taste (Milds) 10","brand":"Classic","segment":"KSFT","_idx":6},
+  "CLFTKT20":{"sku":"CLFTKT20","name":"Classic Balanced Taste (Milds) 20","brand":"Classic","segment":"KSFT","_idx":7},
+  "CLCLOVEFTK12":{"sku":"CLCLOVEFTK12","name":"Classic Clove 12","brand":"Classic","segment":"Super KSFT","_idx":8},
+  "CLASSICCONNECTFK20":{"sku":"CLASSICCONNECTFK20","name":"Classic Connect 20","brand":"Classic","segment":"KSFT","_idx":9},
+  "CLDOUBLEBURST10":{"sku":"CLDOUBLEBURST10","name":"Classic Double Burst 10","brand":"Classic","segment":"KSFT","_idx":10},
+  "CLDOUBLEBURST20":{"sku":"CLDOUBLEBURST20","name":"Classic Double Burst 20","brand":"Classic","segment":"KSFT","_idx":11},
+  "CLFINTASTLOWSMEL20":{"sku":"CLFINTASTLOWSMEL20","name":"Classic Fine Taste Low Smell 20","brand":"Classic","segment":"KSFT","_idx":12},
+  "CLASSICICEBURST10":{"sku":"CLASSICICEBURST10","name":"Classic Ice Burst 10","brand":"Classic","segment":"KSFT","_idx":13},
+  "CLASSICICEBURST20":{"sku":"CLASSICICEBURST20","name":"Classic Ice Burst 20","brand":"Classic","segment":"KSFT","_idx":14},
+  "CLFTKREFT10":{"sku":"CLFTKREFT10","name":"Classic Refined Taste 10","brand":"Classic","segment":"KSFT","_idx":15},
+  "CLFTLREFT20":{"sku":"CLFTLREFT20","name":"Classic Refined Taste 20","brand":"Classic","segment":"KSFT","_idx":16},
+  "CLFTKRT10":{"sku":"CLFTKRT10","name":"Classic Rich Taste 10","brand":"Classic","segment":"KSFT","_idx":17},
+  "CLFTKRT20":{"sku":"CLFTKRT20","name":"Classic Rich Taste 20","brand":"Classic","segment":"KSFT","_idx":18},
+  "CLFTKV16CP":{"sku":"CLFTKV16CP","name":"Classic Verve 16","brand":"Classic","segment":"KSFT","_idx":19},
+  "CLFTKVRBT16CP":{"sku":"CLFTKVRBT16CP","name":"Classic Verve Balance Taste 16","brand":"Classic","segment":"KSFT","_idx":20},
+  "FLSPLDST10":{"sku":"FLSPLDST10","name":"Flake Special 10","brand":"Flake","segment":"DSFT","_idx":21},
+  "GFFTKBLUE10":{"sku":"GFFTKBLUE10","name":"Gold Flake Blue 10","brand":"Gold Flake","segment":"KSFT","_idx":22},
+  "GFFTKBLUE20":{"sku":"GFFTKBLUE20","name":"Gold Flake Blue 20","brand":"Gold Flake","segment":"KSFT","_idx":23},
+  "GFINDIEMINTFT10":{"sku":"GFINDIEMINTFT10","name":"Gold Flake Indie Mint 10","brand":"Gold Flake","segment":"RSFT","_idx":24},
+  "GFKMIXPOD10":{"sku":"GFKMIXPOD10","name":"Gold Flake Mixpod 10","brand":"Gold Flake","segment":"KSFT","_idx":25},
+  "GFKMIXPOD20":{"sku":"GFKMIXPOD20","name":"Gold Flake Mixpod 20","brand":"Gold Flake","segment":"KSFT","_idx":26},
+  "GFPRFT10":{"sku":"GFPRFT10","name":"Gold Flake Premium Filter 10","brand":"Gold Flake","segment":"RSFT","_idx":27},
+  "GFFTK10":{"sku":"GFFTK10","name":"Gold Flake Red 10","brand":"Gold Flake","segment":"KSFT","_idx":28},
+  "GFFTK20":{"sku":"GFFTK20","name":"Gold Flake Red 20","brand":"Gold Flake","segment":"KSFT","_idx":29},
+  "GFSLFTK16CP":{"sku":"GFSLFTK16CP","name":"Gold Flake SLK 16","brand":"Gold Flake","segment":"KSFT","_idx":30},
+  "GFSPSTRDST10-VAR2":{"sku":"GFSPSTRDST10-VAR2","name":"Gold Flake Super Star V2 10","brand":"Gold Flake","segment":"DSFT","_idx":31},
+  "GFTKTWINPOD10":{"sku":"GFTKTWINPOD10","name":"Gold Flake Twinpod 10","brand":"Gold Flake","segment":"KSFT","_idx":32},
+  "GFTKTWINPOD20":{"sku":"GFTKTWINPOD20","name":"Gold Flake Twinpod 20","brand":"Gold Flake","segment":"KSFT","_idx":33},
+  "IKFTKWHITEGOLD20":{"sku":"IKFTKWHITEGOLD20","name":"India Kings White Gold 20","brand":"India Kings","segment":"KSFT","_idx":34},
+  "IKFTKRICHGOLD20":{"sku":"IKFTKRICHGOLD20","name":"India Kings Rich Gold 20","brand":"India Kings","segment":"KSFT","_idx":35},
+  "NC10":{"sku":"NC10","name":"Navy Cut 10","brand":"Navy Cut","segment":"Longs","_idx":36},
+  "SCBLUEDST10":{"sku":"SCBLUEDST10","name":"Silkcut Blue 10","brand":"SilkCut","segment":"DSFT","_idx":37},
+  "SCDST10":{"sku":"SCDST10","name":"Silkcut Special 10","brand":"SilkCut","segment":"DSFT","_idx":38}
+};
+</script>
+
+<script>
+// Kick off data fetch
+fetchData();
+</script>
+</body>
+</html>
